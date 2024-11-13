@@ -5,37 +5,37 @@ import { Audio } from 'expo-av';
 const SCREEN_WIDTH = Dimensions.get('window').width;
 
 export default function App() {
-  const [bpm, setBpm] = useState(60); // 기본 템포를 60 BPM으로 설정
-  const [isPlaying, setIsPlaying] = useState(false); // 재생 상태
-  const [soundPage1, setSoundPage1] = useState(null); // 첫 번째 페이지 소리 객체
-  const [soundPage2, setSoundPage2] = useState(null); // 두 번째 페이지 소리 객체
-  const [isSoundLoaded, setIsSoundLoaded] = useState(false); // 소리 로드 상태
-  const nextTickTime = useRef(null); // 다음 tick 시간
-  const timerRef = useRef(null); // setTimeout 참조
-  const animation = useRef(new Animated.Value(1)).current; // 애니메이션 효과
-  const accumulatedDrift = useRef(0); // 누적 오차 관리
-  const [currentPage, setCurrentPage] = useState(0); // 현재 페이지 관리
+  const [bpm, setBpm] = useState(60);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [soundPage1, setSoundPage1] = useState(null);
+  const [soundPage2, setSoundPage2] = useState(null);
+  const [isSoundLoaded, setIsSoundLoaded] = useState(false);
+  const nextTickTime = useRef(null);
+  const timerRef = useRef(null);
+  const animation = useRef(new Animated.Value(1)).current;
+  const accumulatedDrift = useRef(0);
+  const [currentPage, setCurrentPage] = useState(0);
 
-  // 소리 로드 함수
+
   async function loadSounds() {
     try {
       const { sound: sound1 } = await Audio.Sound.createAsync(
-        require('./assets/metronome-tick-302ms.wav') // 첫 번째 페이지 메트로놈 소리 파일 추가
+        require('./assets/metronome-tick-302ms.wav')
       );
       const { sound: sound2 } = await Audio.Sound.createAsync(
-        require('./assets/metronome-tick-300ms.wav') // 두 번째 페이지 메트로놈 소리 파일 추가
+        require('./assets/metronome-tick-300ms.wav')
       );
-      await sound1.setStatusAsync({ shouldPlay: false }); // 준비 상태로 유지
-      await sound2.setStatusAsync({ shouldPlay: false }); // 준비 상태로 유지
+      await sound1.setStatusAsync({ shouldPlay: false });
+      await sound2.setStatusAsync({ shouldPlay: false });
       setSoundPage1(sound1);
       setSoundPage2(sound2);
-      setIsSoundLoaded(true); // 소리 로드 완료 표시
+      setIsSoundLoaded(true);
     } catch (error) {
       console.error("Error loading sounds: ", error);
     }
   }
 
-  // 초기화 시 소리 로드
+
   useEffect(() => {
     loadSounds();
     return () => {
@@ -48,21 +48,21 @@ export default function App() {
     };
   }, []);
 
-  // 메트로놈 소리 재생 함수
+
   const playSound = async () => {
     let currentSound = currentPage === 0 ? soundPage1 : soundPage2;
     if (currentSound && isSoundLoaded) {
       try {
-        await currentSound.stopAsync(); // 재생 중지 후
-        await currentSound.setPositionAsync(0); // 소리를 처음부터 재생하도록 위치 설정
-        await currentSound.playAsync(); // 재생 시작
+        await currentSound.stopAsync();
+        await currentSound.setPositionAsync(0);
+        await currentSound.playAsync();
       } catch (error) {
         console.error("Error playing sound: ", error);
       }
     }
   };
 
-  // 비주얼 피드백 애니메이션 함수
+
   const startAnimation = () => {
     Animated.sequence([
       Animated.timing(animation, {
@@ -78,7 +78,7 @@ export default function App() {
     ]).start();
   };
 
-  // Tick 스케줄링 함수: 정확한 간격 유지
+
   const scheduleTick = () => {
     const now = performance.now();
     const interval = (60 / bpm) * 1000;
@@ -86,31 +86,31 @@ export default function App() {
     if (nextTickTime.current <= now) {
       playSound();
       startAnimation();
-      const drift = now - nextTickTime.current; // 현재 오차 계산
-      accumulatedDrift.current += drift; // 오차 누적
+      const drift = now - nextTickTime.current;
+      accumulatedDrift.current += drift;
       nextTickTime.current += interval;
     }
 
-    const correctedInterval = interval - accumulatedDrift.current; // 누적 오차를 보정한 간격 계산
+    const correctedInterval = interval - accumulatedDrift.current;
     const timeUntilNextTick = Math.max(0, nextTickTime.current - performance.now());
     timerRef.current = setTimeout(scheduleTick, Math.min(timeUntilNextTick, correctedInterval));
-    accumulatedDrift.current = 0; // 오차 보정 후 초기화
+    accumulatedDrift.current = 0;
   };
 
-  // 프리셋 버튼 클릭 시 BPM 설정 및 메트로놈 시작/중지
+
   const handlePresetClick = (presetBpm) => {
     if (!isSoundLoaded) {
       console.warn("Sounds are not loaded yet.");
       return;
     }
     if (isPlaying) {
-      // 재생 중이라면 멈춤
+
       if (timerRef.current) {
         clearTimeout(timerRef.current);
       }
       setIsPlaying(false);
     } else {
-      // 재생 중이 아니라면 새로운 BPM으로 시작
+
       setBpm(presetBpm);
       nextTickTime.current = performance.now();
       accumulatedDrift.current = 0;
@@ -119,7 +119,7 @@ export default function App() {
     }
   };
 
-  // BPM이 변경될 때 즉시 새로운 스케줄 설정
+
   useEffect(() => {
     if (isPlaying) {
       if (timerRef.current) {
@@ -133,7 +133,7 @@ export default function App() {
 
   const handleAnyButtonClick = () => {
     if (isPlaying) {
-      // 재생 중일 때 아무 버튼을 누르면 멈춤
+
       if (timerRef.current) {
         clearTimeout(timerRef.current);
       }
@@ -141,7 +141,7 @@ export default function App() {
     }
   };
 
-  // 페이지 스크롤 시 현재 페이지 설정
+
   const handleScroll = (event) => {
     const pageIndex = Math.round(event.nativeEvent.contentOffset.x / SCREEN_WIDTH);
     setCurrentPage(pageIndex);
@@ -157,7 +157,7 @@ export default function App() {
       scrollEventThrottle={16}
     >
       <StatusBar hidden={true} />
-      {/* Home Screen Page 1 */}
+      {/* Page 1 */}
       <View style={[styles.container, styles.containerPage1]}>
         <Animated.View style={[styles.visualFeedback, { transform: [{ scale: animation }] }]} />
         <Text style={styles.title}>Metronome</Text>
@@ -173,7 +173,7 @@ export default function App() {
         </View>
       </View>
 
-      {/* Home Screen Page 2 */}
+      {/* Page 2 */}
       <View style={[styles.container, styles.containerPage2]}>
         <Animated.View style={[styles.visualFeedback, { transform: [{ scale: animation }] }]} />
         <Text style={styles.title}>Metronome</Text>
